@@ -136,27 +136,14 @@ jobs:
           cp "$file" release/
         done
         
+        # Create checksums
         cd release
-        
-        # Create archive for each platform
-        tar -czf cpc-conf-linux-amd64.tar.gz cpc-conf-linux-amd64
-        tar -czf cpc-conf-linux-arm64.tar.gz cpc-conf-linux-arm64
-        tar -czf cpc-conf-linux-armhf.tar.gz cpc-conf-linux-armhf
-        tar -czf cpc-conf-darwin-amd64.tar.gz cpc-conf-darwin-amd64
-        tar -czf cpc-conf-darwin-arm64.tar.gz cpc-conf-darwin-arm64
-        
-        # Remove raw binaries
-        rm cpc-conf-linux-amd64 cpc-conf-linux-arm64 cpc-conf-linux-armhf cpc-conf-darwin-amd64 cpc-conf-darwin-arm64
-        
-        # Create checksums for the archives
-        sha256sum *.tar.gz > cpc-conf-SHA256SUMS
+        sha256sum cpc-conf-linux-amd64 cpc-conf-linux-arm64 cpc-conf-linux-armhf cpc-conf-darwin-amd64 cpc-conf-darwin-arm64 > cpc-conf-SHA256SUMS
         
     - name: Create cpc-conf Release
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          release/*.tar.gz
-          release/cpc-conf-SHA256SUMS
+        files: release/cpc-conf-*
         body: |
           ## CPCReady Toolchain - cpc-conf ${{ github.ref_name }}
           
@@ -165,13 +152,13 @@ jobs:
           ### Downloads
           
           **Linux:**
-          - `cpc-conf-linux-amd64.tar.gz` - Linux x86_64 (Intel/AMD 64-bit)
-          - `cpc-conf-linux-arm64.tar.gz` - Linux ARM64 (Raspberry Pi 4, AWS Graviton)
-          - `cpc-conf-linux-armhf.tar.gz` - Linux ARM Hard Float (Raspberry Pi 2/3)
+          - `cpc-conf-linux-amd64` - Linux x86_64 (Intel/AMD 64-bit)
+          - `cpc-conf-linux-arm64` - Linux ARM64 (Raspberry Pi 4, AWS Graviton)
+          - `cpc-conf-linux-armhf` - Linux ARM Hard Float (Raspberry Pi 2/3)
           
           **macOS:**
-          - `cpc-conf-darwin-amd64.tar.gz` - macOS Intel (x86_64)
-          - `cpc-conf-darwin-arm64.tar.gz` - macOS Apple Silicon (M1/M2/M3)
+          - `cpc-conf-darwin-amd64` - macOS Intel (x86_64)
+          - `cpc-conf-darwin-arm64` - macOS Apple Silicon (M1/M2/M3)
           
           ### Features
           
@@ -225,7 +212,7 @@ jobs:
     name: Update cpc-conf build status
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
     
     steps:
     - name: Update build status
