@@ -1,0 +1,230 @@
+name: Build cpc-conf Multi-Platform Binaries
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build cpc-conf for ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    
+    strategy:
+      matrix:
+        include:
+          # Linux builds
+          - os: linux
+            arch: amd64
+            runner: ubuntu-latest
+            cc: gcc
+            target: x86_64-linux-gnu
+            
+          - os: linux
+            arch: arm64
+            runner: ubuntu-latest
+            cc: aarch64-linux-gnu-gcc
+            target: aarch64-linux-gnu
+            
+          - os: linux
+            arch: armhf
+            runner: ubuntu-latest
+            cc: arm-linux-gnueabihf-gcc
+            target: arm-linux-gnueabihf
+            
+          # macOS builds
+          - os: darwin
+            arch: amd64
+            runner: macos-latest
+            cc: clang
+            target: x86_64-apple-darwin
+            
+          - os: darwin
+            arch: arm64
+            runner: macos-latest
+            cc: clang
+            target: arm64-apple-darwin
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up build environment
+      run: |
+        echo "Building cpc-conf for ${{ matrix.os }}-${{ matrix.arch }}"
+        echo "Runner: ${{ matrix.runner }}"
+        echo "Compiler: ${{ matrix.cc }}"
+        
+    - name: Install cross-compilation tools (Linux)
+      if: matrix.os == 'linux' && matrix.arch != 'amd64'
+      run: |
+        sudo apt-get update
+        if [ "${{ matrix.arch }}" = "arm64" ]; then
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        elif [ "${{ matrix.arch }}" = "armhf" ]; then
+          sudo apt-get install -y gcc-arm-linux-gnueabihf
+        fi
+        
+    - name: Build cpc-conf binary
+      run: |
+        mkdir -p dist
+        
+        if [ "${{ matrix.os }}" = "linux" ]; then
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            gcc -static -O2 -o dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} cpc-conf.c
+          else
+            ${{ matrix.cc }} -static -O2 -o dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} cpc-conf.c
+          fi
+        elif [ "${{ matrix.os }}" = "darwin" ]; then
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            clang -O2 -target x86_64-apple-macos10.12 -o dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} cpc-conf.c
+          else
+            clang -O2 -target arm64-apple-macos11 -o dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} cpc-conf.c
+          fi
+        fi
+        
+    - name: Test cpc-conf binary
+      run: |
+        # Test the binary works
+        if [ "${{ matrix.os }}" = "linux" ] && [ "${{ matrix.arch }}" = "amd64" ]; then
+          ./dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} --version
+          ./dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} set test.ini database host "localhost"
+          ./dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} get test.ini database host
+        elif [ "${{ matrix.os }}" = "darwin" ]; then
+          ./dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} --version
+          ./dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} set test.ini database host "localhost"
+          ./dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }} get test.ini database host
+        fi
+        
+    - name: Create binary info
+      run: |
+        cd dist
+        file cpc-conf-${{ matrix.os }}-${{ matrix.arch }} > cpc-conf-${{ matrix.os }}-${{ matrix.arch }}.info
+        ls -la cpc-conf-${{ matrix.os }}-${{ matrix.arch }} >> cpc-conf-${{ matrix.os }}-${{ matrix.arch }}.info
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cpc-conf-${{ matrix.os }}-${{ matrix.arch }}
+        path: |
+          dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }}
+          dist/cpc-conf-${{ matrix.os }}-${{ matrix.arch }}.info
+        retention-days: 30
+
+  create-release:
+    name: Create cpc-conf Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/cpc-conf-v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+        
+    - name: Prepare release assets
+      run: |
+        mkdir -p release
+        find ./artifacts -name "cpc-conf-*" -type f ! -name "*.info" | while read file; do
+          cp "$file" release/
+        done
+        
+        # Create checksums
+        cd release
+        sha256sum cpc-conf-* > cpc-conf-SHA256SUMS
+        
+        # Create archive for each platform
+        tar -czf cpc-conf-linux-amd64.tar.gz cpc-conf-linux-amd64
+        tar -czf cpc-conf-linux-arm64.tar.gz cpc-conf-linux-arm64
+        tar -czf cpc-conf-linux-armhf.tar.gz cpc-conf-linux-armhf
+        tar -czf cpc-conf-darwin-amd64.tar.gz cpc-conf-darwin-amd64
+        tar -czf cpc-conf-darwin-arm64.tar.gz cpc-conf-darwin-arm64
+        
+    - name: Create cpc-conf Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          release/cpc-conf-*
+          release/cpc-conf-SHA256SUMS
+        body: |
+          ## CPCReady Toolchain - cpc-conf ${{ github.ref_name }}
+          
+          **INI Configuration File Management Utility**
+          
+          ### Downloads
+          
+          **Linux:**
+          - `cpc-conf-linux-amd64.tar.gz` - Linux x86_64 (Intel/AMD 64-bit)
+          - `cpc-conf-linux-arm64.tar.gz` - Linux ARM64 (Raspberry Pi 4, AWS Graviton)
+          - `cpc-conf-linux-armhf.tar.gz` - Linux ARM Hard Float (Raspberry Pi 2/3)
+          
+          **macOS:**
+          - `cpc-conf-darwin-amd64.tar.gz` - macOS Intel (x86_64)
+          - `cpc-conf-darwin-arm64.tar.gz` - macOS Apple Silicon (M1/M2/M3)
+          
+          ### Features
+          
+          - ✅ **file management**: Full support for section-based configuration
+          - ✅ **Auto-creation**: Creates files and sections automatically
+          - ✅ **Silent operation**: No output on success, detailed errors on failure
+          - ✅ **Cross-platform**: Native binaries for all major platforms
+          
+          ### Installation
+          
+          ```bash
+          # Download and extract for your platform
+          tar -xzf cpc-conf-<platform>-<arch>.tar.gz
+          
+          # Make executable and move to PATH
+          chmod +x cpc-conf-<platform>-<arch>
+          sudo mv cpc-conf-<platform>-<arch> /usr/local/bin/cpc-conf
+          
+          # Test installation
+          cpc-conf --version
+          ```
+          
+          ### Quick Start
+          
+          ```bash
+          # Set configuration values
+          cpc-conf set cpcready.conf database host "localhost"
+          cpc-conf set cpcready.conf database port 5432
+          
+          # Get configuration values
+          cpc-conf get cpcready.conf database host
+          cpc-conf get cpcready.conf database port
+          ```
+          
+          ### Verification
+          
+          Verify your download with checksums:
+          ```bash
+          sha256sum -c cpc-conf-SHA256SUMS
+          ```
+          
+          ---
+          
+          **Documentation**: See [README-cpc-conf.md](README-cpc-conf.md) for complete usage guide
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.repository.default_branch }}...${{ github.ref_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-badges:
+    name: Update cpc-conf build status
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Update build status
+      run: |
+        echo "cpc-conf build completed successfully for all platforms"
+        echo "Artifacts available for download"
