@@ -2,7 +2,7 @@ name: Build cpc-conf Multi-Platform Binaries
 
 on:
   push:
-    branches: [ main, master, develop ]
+    # branches: [ main, master, develop ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
@@ -136,9 +136,7 @@ jobs:
           cp "$file" release/
         done
         
-        # Create checksums
         cd release
-        sha256sum cpc-conf-* > cpc-conf-SHA256SUMS
         
         # Create archive for each platform
         tar -czf cpc-conf-linux-amd64.tar.gz cpc-conf-linux-amd64
@@ -147,11 +145,17 @@ jobs:
         tar -czf cpc-conf-darwin-amd64.tar.gz cpc-conf-darwin-amd64
         tar -czf cpc-conf-darwin-arm64.tar.gz cpc-conf-darwin-arm64
         
+        # Remove raw binaries
+        rm cpc-conf-linux-amd64 cpc-conf-linux-arm64 cpc-conf-linux-armhf cpc-conf-darwin-amd64 cpc-conf-darwin-arm64
+        
+        # Create checksums for the archives
+        sha256sum *.tar.gz > cpc-conf-SHA256SUMS
+        
     - name: Create cpc-conf Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          release/cpc-conf-*
+          release/*.tar.gz
           release/cpc-conf-SHA256SUMS
         body: |
           ## CPCReady Toolchain - cpc-conf ${{ github.ref_name }}
