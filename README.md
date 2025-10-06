@@ -1,11 +1,11 @@
 # CPCReady Toolchain Configuration Tool
 
-[![Build](https://img.shields.io/github/actions/workflow/status/CPCReady/toolchain/build.yml?branch=main&label=build&logo=github)](https://github.com/CPCReady/toolchain/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/CPCReady/toolchain)
-[![License](https://img.shields.io/badge/license-Destroyer%202025-green.svg)](https://github.com/CPCReady/toolchain)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Raspberry%20Pi-lightgrey.svg)](https://github.com/CPCReady/toolchain)
+[![Build](https://img.shields.io/github/actions/workflow/status/CPCReady/cpc-conf/build.yml?branch=main&label=build&logo=github)](https://github.com/CPCReady/toolchain/actions/workflows/build.yml)
+[![GitHub release](https://img.shields.io/github/v/release/CPCReady/cpc-conf)](https://github.com/CPCReady/cpc-conf/releases)
+[![License](https://img.shields.io/badge/license-Destroyer%202025-green.svg)](https://github.com/CPCReady/cpc-conf/blob/main/LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Raspberry%20Pi-lightgrey.svg)](https://github.com/CPCReady/cpc-conf/blob/main/README.md)
 
-> **CPCReady Toolchain: INI configuration file management utility.**
+> **CPCReady Toolchain: configuration file management utility.**
 
 A powerful and flexible command-line tool for managing key-value pairs in INI format configuration files. This software is part of the CPCReady SDK and provides seamless section-based configuration management.
 
