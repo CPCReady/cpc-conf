@@ -4,7 +4,7 @@
 
 #define MAX_LINES 1024
 #define MAX_LINE_LEN 256
-#define VERSION "1.0.1"
+#define VERSION "1.0.3"
 #define PROGRAM_NAME "cpc-conf"
 
 void show_version() {
